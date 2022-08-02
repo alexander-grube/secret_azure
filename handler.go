@@ -47,6 +47,32 @@ func postSecretHandler(rdb *redis.Client) http.HandlerFunc {
 
 }
 
+func getSecretHandler(rdb *redis.Client) http.HandlerFunc {
+    fn := func(w http.ResponseWriter, r *http.Request) {
+    vars := mux.Vars(r)
+    id := vars["id"]
+    s, err := rdb.Get(r.Context(), id).Result()
+    if err == redis.Nil {
+        http.Error(w, "Secret not found", http.StatusNotFound)
+        return
+    } else if err != nil {
+        log.Println(err)
+        http.Error(w, "Error getting secret", http.StatusInternalServerError)
+        return
+    }
+    err = rdb.Del(r.Context(), id).Err()
+    if err != nil {
+        log.Println(err)
+        http.Error(w, "Error deleting secret", http.StatusInternalServerError)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+    fmt.Fprint(w, s)
+}
+    return fn
+}
+
 
 func main() {
     rdbOptions, err := redis.ParseURL(os.Getenv("REDIS_DB"))
@@ -62,6 +88,7 @@ func main() {
 
     r := mux.NewRouter()
     r.HandleFunc("/api/secret", postSecretHandler(rdb)).Methods("POST")
+    r.HandleFunc("/api/secret/{id}", getSecretHandler(rdb)).Methods("GET")
     log.Printf("About to listen on %s. Go to https://127.0.0.1%s/", listenAddr, listenAddr)
     log.Fatal(http.ListenAndServe(listenAddr, r))
 }
