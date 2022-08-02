@@ -66,9 +66,16 @@ func getSecretHandler(rdb *redis.Client) http.HandlerFunc {
         http.Error(w, "Error deleting secret", http.StatusInternalServerError)
         return
     }
-    w.Header().Set("Content-Type", "application/json")
+    secret := model.Secret{}
+    err = json.Unmarshal([]byte(s), &secret)
+    if err != nil {
+        log.Println(err)
+        http.Error(w, "Error unmarshalling secret", http.StatusInternalServerError)
+        return
+    }
+    w.Header().Set("Content-Type", "text/plain")
     w.WriteHeader(http.StatusOK)
-    fmt.Fprint(w, s)
+    fmt.Fprint(w, secret.Data)
 }
     return fn
 }
